@@ -1,10 +1,19 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import 'screens/connect_screen.dart';
+import 'services/app_log.dart';
 import 'services/esp_ble_service.dart';
 import 'services/transcription_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AppLog.instance.init();
+  FlutterBluePlus.setLogLevel(
+    kReleaseMode ? LogLevel.info : LogLevel.verbose,
+  );
+  AppLog.instance.info('ESP Sense starting');
   runApp(const EspSenseApp());
 }
 
@@ -23,6 +32,7 @@ class _EspSenseAppState extends State<EspSenseApp> {
   void dispose() {
     _ble.dispose();
     _transcription.dispose();
+    AppLog.instance.dispose();
     super.dispose();
   }
 

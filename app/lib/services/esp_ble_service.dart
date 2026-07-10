@@ -5,6 +5,9 @@ import 'dart:typed_data';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import '../protocol.dart';
+import 'app_log.dart';
+
+final _log = AppLog.instance;
 
 enum EspConnectionState { disconnected, scanning, connecting, connected }
 
@@ -75,14 +78,19 @@ class EspBleService {
     _setState(EspConnectionState.scanning);
 
     try {
+      await _ensureBluetoothReady();
+      _log.info('Bluetooth ready, starting scan for $espName');
+
       final device = await _scanForDevice();
       if (device == null) {
         _setState(EspConnectionState.disconnected);
+        _log.warn('Device $espName not found after scan');
         throw Exception('Устройство $espName не найдено. Проверьте питание.');
       }
 
       _setState(EspConnectionState.connecting);
       _device = device;
+      _log.info('Found ${device.platformName} (${device.remoteId}), connecting…');
 
       _connSub = device.connectionState.listen((s) {
         if (s == BluetoothConnectionState.disconnected &&
@@ -130,11 +138,63 @@ class EspBleService {
       await dataChar.setNotifyValue(true);
 
       _setState(EspConnectionState.connected);
+      _log.info('Connected. fw=${deviceInfo.firmware}');
     } catch (e) {
+      _log.error('Connect failed', e);
       _cleanup();
       await _device?.disconnect();
       _setState(EspConnectionState.disconnected);
       rethrow;
+    }
+  }
+
+  /// Ждёт готовности Bluetooth-адаптера (macOS/iOS стартуют с unknown).
+  Future<void> _ensureBluetoothReady() async {
+    final supported = await FlutterBluePlus.isSupported;
+    _log.info('BLE supported: $supported');
+    if (!supported) {
+      throw Exception('Bluetooth не поддерживается на этом устройстве.');
+    }
+
+    var state = await FlutterBluePlus.adapterState.first;
+    _log.info('Adapter state (initial): $state');
+
+    if (state == BluetoothAdapterState.unknown) {
+      _log.info('Adapter unknown, waiting 1s…');
+      await Future<void>.delayed(const Duration(seconds: 1));
+      state = await FlutterBluePlus.adapterState.first;
+      _log.info('Adapter state (after delay): $state');
+    }
+
+    try {
+      await FlutterBluePlus.adapterState
+          .where((s) => s == BluetoothAdapterState.on)
+          .first
+          .timeout(const Duration(seconds: 10));
+      _log.info('Adapter is ON');
+    } on TimeoutException {
+      final current = await FlutterBluePlus.adapterState.first;
+      _log.warn('Adapter not ready, current state: $current');
+      throw Exception(_adapterErrorMessage(current));
+    }
+  }
+
+  String _adapterErrorMessage(BluetoothAdapterState state) {
+    switch (state) {
+      case BluetoothAdapterState.off:
+        return 'Bluetooth выключен. Включите в Системных настройках → Bluetooth.';
+      case BluetoothAdapterState.unauthorized:
+        return 'Нет доступа к Bluetooth. Настройки → Конфиденциальность → Bluetooth → разрешите ESP Sense.';
+      case BluetoothAdapterState.unavailable:
+        return 'Bluetooth недоступен. Проверьте разрешения приложения.';
+      case BluetoothAdapterState.unknown:
+        return 'Bluetooth ещё инициализируется. Подождите 2 сек и нажмите снова.';
+      case BluetoothAdapterState.turningOn:
+        return 'Bluetooth включается. Подождите и попробуйте снова.';
+      case BluetoothAdapterState.turningOff:
+        return 'Bluetooth выключается. Подождите и попробуйте снова.';
+      case BluetoothAdapterState.on:
+        return 'Bluetooth готов.';
     }
   }
 
@@ -149,6 +209,7 @@ class EspBleService {
         if (r.advertisementData.advName == EspProtocol.deviceName ||
             r.device.platformName == EspProtocol.deviceName) {
           found = r.device;
+          _log.info('Scan hit: ${r.device.platformName} rssi=${r.rssi}');
           if (!completer.isCompleted) completer.complete(found);
         }
       }
@@ -158,6 +219,7 @@ class EspBleService {
       withServices: [Guid(EspProtocol.serviceUuid)],
       timeout: const Duration(seconds: 15),
     );
+    _log.info('Scan started (service filter)');
 
     final timer = Timer(const Duration(seconds: 15), () {
       if (!completer.isCompleted) completer.complete(null);
