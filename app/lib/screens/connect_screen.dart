@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -31,8 +34,9 @@ class _ConnectScreenState extends State<ConnectScreen> {
     });
   }
 
-  Future<void> _connect() async {
-    setState(() => _error = null);
+  Future<bool> _requestBlePermissions() async {
+    // На macOS/iOS система сама запросит доступ через Info.plist.
+    if (kIsWeb || !Platform.isAndroid) return true;
 
     final statuses = await [
       Permission.bluetoothScan,
@@ -40,9 +44,16 @@ class _ConnectScreenState extends State<ConnectScreen> {
     ].request();
     if (statuses.values.any((s) => s.isPermanentlyDenied)) {
       setState(() => _error =
-          'Нет разрешения на Bluetooth. Включите его в настройках телефона.');
-      return;
+          'Нет разрешения на Bluetooth. Включите его в настройках устройства.');
+      return false;
     }
+    return true;
+  }
+
+  Future<void> _connect() async {
+    setState(() => _error = null);
+
+    if (!await _requestBlePermissions()) return;
 
     try {
       await widget.ble.connect();

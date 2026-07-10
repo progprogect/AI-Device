@@ -1,0 +1,52 @@
+# Сборка macOS-приложения для локального теста на Mac (без установки Xcode).
+# Артефакт: Actions → esp-sense-macos → esp_sense_app.zip
+
+name: Build macOS App
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/macos-app.yml'
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build macOS app
+        run: flutter build macos --release
+
+      - name: Package app bundle
+        run: |
+          APP="build/macos/Build/Products/Release/esp_sense_app.app"
+          if [ ! -d "$APP" ]; then
+            echo "App bundle not found"
+            find build/macos -name "*.app"
+            exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent "$APP" build/macos/esp_sense_app.zip
+          ls -lh build/macos/esp_sense_app.zip
+
+      - name: Upload macOS app
+        uses: actions/upload-artifact@v4
+        with:
+          name: esp-sense-macos
+          path: app/build/macos/esp_sense_app.zip
+          retention-days: 30

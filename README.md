@@ -20,6 +20,23 @@
 - [План разработки](docs/PLAN.md)
 - [Установка на iPhone (Sideloadly)](docs/INSTALL.md)
 
+## Платформы
+
+| Платформа | Сборка | Установка |
+|-----------|--------|-----------|
+| **macOS** (тест на Mac) | GitHub Actions → `esp-sense-macos` | Распаковать `.app`, правый клик → Открыть |
+| **iOS** (iPhone) | GitHub Actions → `esp-sense-ipa` | Sideloadly |
+| **Android** | `flutter build apk` | APK в Telegram |
+
+## macOS — тест без Xcode
+
+1. [Actions → Build macOS App](https://github.com/progprogect/AI-Device/actions/workflows/macos-app.yml)
+2. Скачать `esp-sense-macos.zip` → `esp_sense_app.app`
+3. Правый клик → **Открыть** (Gatekeeper)
+4. Подключиться к ESP-Sense по Bluetooth
+
+Подробнее: [docs/INSTALL.md](docs/INSTALL.md)
+
 ## iOS без Xcode на Mac
 
 IPA собирается в GitHub Actions:

@@ -1,5 +1,21 @@
 # Установка приложения ESP Sense
 
+## macOS — тест на Mac без Xcode (GitHub Actions)
+
+Если на Mac мало места для Xcode, приложение собирается в облаке — тот же код, что на iPhone:
+
+1. GitHub → **Actions** → **Build macOS App** → дождаться зелёной галочки
+2. **Artifacts** → `esp-sense-macos` → скачать zip
+3. Распаковать → `esp_sense_app.app`
+4. **Правый клик** по приложению → **«Открыть»** → **«Открыть»** (обход Gatekeeper)
+5. При первом запуске разрешить **Bluetooth**
+
+Workflow запускается при push в `main` (если менялся `app/`) или вручную через **Run workflow**.
+
+После обновлений — скачать новый артефакт и заменить `.app` (модель Whisper в `~/Library/` сохранится).
+
+---
+
 ## iOS — сборка через GitHub Actions (без Xcode на Mac)
 
 Если на Mac мало места для Xcode (~12–35 ГБ), IPA собирается в облаке:
