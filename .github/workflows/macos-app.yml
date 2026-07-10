@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build macOS app
+      - name: Build macOS app (Apple Silicon)
         run: flutter build macos --release
 
       - name: Package app bundle

@@ -1,2 +1,6 @@
 #include "../../Flutter/Flutter-Release.xcconfig"
 #include "Warnings.xcconfig"
+
+// whisper_ggml_plus: ggml CPU kernels только для Apple Silicon
+EXCLUDED_ARCHS[sdk=macosx*]=x86_64
+ARCHS=arm64
