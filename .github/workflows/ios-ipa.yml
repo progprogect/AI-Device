@@ -1,0 +1,45 @@
+# Сборка unsigned IPA для установки через Sideloadly (бесплатный Apple ID).
+# Артефакт: Actions → последний run → esp-sense-ipa → esp_sense_app.ipa
+
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/ios-ipa.yml'
+
+jobs:
+  build-ipa:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build IPA (unsigned)
+        run: flutter build ipa --release --no-codesign
+
+      - name: List build output
+        run: ls -laR build/ios/
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: esp-sense-ipa
+          path: app/build/ios/ipa/*.ipa
+          retention-days: 30
+          if-no-files-found: error

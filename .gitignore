@@ -1,0 +1,9 @@
+secrets.h
+.venv/
+__pycache__/
+*.pyc
+recordings/
+server/test_photo.jpg
+.DS_Store
+*.iml
+.idea/

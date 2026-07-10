@@ -1,0 +1,21 @@
+[server]
+host = "0.0.0.0"
+port = 8080
+
+[ble]
+device_name = "ESP-Sense"
+snapshot_interval_sec = 60
+
+[audio]
+sample_rate = 16000
+db_threshold = -35.0
+trigger_ms = 200
+silence_ms = 900
+min_record_ms = 500
+max_record_ms = 15000
+
+[whisper]
+model = "small"
+language = "ru"
+device = "auto"
+compute_type = "auto"

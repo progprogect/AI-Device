@@ -1,0 +1,10 @@
+profiles:
+  xiao_esp32s3_sense:
+    fqbn: esp32:esp32:XIAO_ESP32S3:PSRAM=opi
+    platforms:
+      - platform: esp32:esp32
+    build_properties:
+      - "build.partitions=huge_app"
+      - "PSRAM=opi"
+
+default_profile: xiao_esp32s3_sense

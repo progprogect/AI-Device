@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ESP Sense — BLE + Whisper</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <h1>ESP Sense</h1>
+      <p>Bluetooth · микрофон · снимок раз в минуту · Whisper на Mac</p>
+    </header>
+
+    <section class="status-bar">
+      <div class="pill" id="esp-status">BLE: поиск...</div>
+      <div class="pill" id="audio-status">Аудио: нет данных</div>
+      <div class="pill" id="record-status">Запись: выкл</div>
+      <div class="pill" id="image-status">Снимок: ожидание</div>
+    </section>
+
+    <main class="grid">
+      <section class="panel camera-panel">
+        <h2>Камера <span class="subtle" id="image-time"></span></h2>
+        <div class="camera-wrap">
+          <img id="camera" src="/api/camera/latest" alt="Последний снимок" />
+        </div>
+        <p class="hint">Новый JPEG приходит по BLE примерно раз в минуту.</p>
+      </section>
+
+      <section class="panel audio-panel">
+        <h2>Микрофон</h2>
+        <div class="meter-wrap">
+          <div class="meter">
+            <div id="meter-fill" class="meter-fill"></div>
+            <div id="threshold-line" class="threshold-line"></div>
+          </div>
+          <div class="meter-labels">
+            <span>-60 dB</span>
+            <span id="current-db">-100 dB</span>
+            <span>-10 dB</span>
+          </div>
+        </div>
+
+        <label class="slider-label" for="threshold">
+          Порог записи: <strong id="threshold-value">-35 dB</strong>
+        </label>
+        <input id="threshold" type="range" min="-60" max="-10" step="1" value="-35" />
+
+        <p class="hint">
+          Запись начинается, когда уровень выше порога ~200 мс.
+          Тихие звуки игнорируются. Whisper работает на вашем Mac.
+        </p>
+      </section>
+
+      <section class="panel transcript-panel">
+        <h2>Распознанная речь</h2>
+        <ul id="transcripts" class="transcripts"></ul>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
