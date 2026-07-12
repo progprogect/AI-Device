@@ -70,9 +70,25 @@ class _ControlScreenState extends State<ControlScreen> {
       chat[p.id] = await p.checkAvailability();
     }
     if (mounted) {
+      if (widget.audioSource is EspAudioSource &&
+          _registry.selectedTranscription.supportsLiveTranscription) {
+        for (final p in _registry.transcriptionProviders) {
+          if (p.supportsFileTranscription) {
+            await _registry.selectTranscription(p);
+            break;
+          }
+        }
+      }
       setState(() {
         _asrAvail = asr;
         _chatAvail = chat;
+        if (widget.audioSource is EspAudioSource) {
+          _asrAvail['apple_speech'] = const ProviderAvailability(
+            available: false,
+            reason:
+                'Apple Speech использует микрофон этого устройства, не ESP. Для ESP выберите Whisper.',
+          );
+        }
       });
     }
   }
@@ -110,10 +126,12 @@ class _ControlScreenState extends State<ControlScreen> {
     if (_processing) return;
 
     if (!_recording) {
+      final asr = _registry.selectedTranscription;
+      var liveStarted = false;
       try {
-        final asr = _registry.selectedTranscription;
         if (asr.supportsLiveTranscription) {
           await asr.startLiveTranscription();
+          liveStarted = true;
         }
         await widget.audioSource.startRecording();
         setState(() {
@@ -121,6 +139,11 @@ class _ControlScreenState extends State<ControlScreen> {
           _status = 'Запись…';
         });
       } catch (e) {
+        if (liveStarted && asr.supportsLiveTranscription) {
+          try {
+            await asr.stopLiveTranscription();
+          } catch (_) {}
+        }
         _log.error('Start record: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
