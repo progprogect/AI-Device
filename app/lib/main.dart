@@ -2,14 +2,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
-import 'screens/connect_screen.dart';
+import 'ai/model_registry.dart';
+import 'screens/start_screen.dart';
 import 'services/app_log.dart';
 import 'services/esp_ble_service.dart';
-import 'services/transcription_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppLog.instance.init();
+  await ModelRegistry.instance.init();
   FlutterBluePlus.setLogLevel(
     kReleaseMode ? LogLevel.info : LogLevel.verbose,
   );
@@ -26,12 +27,10 @@ class EspSenseApp extends StatefulWidget {
 
 class _EspSenseAppState extends State<EspSenseApp> {
   final _ble = EspBleService();
-  final _transcription = TranscriptionService();
 
   @override
   void dispose() {
     _ble.dispose();
-    _transcription.dispose();
     AppLog.instance.dispose();
     super.dispose();
   }
@@ -52,7 +51,7 @@ class _EspSenseAppState extends State<EspSenseApp> {
         ),
         useMaterial3: true,
       ),
-      home: ConnectScreen(ble: _ble, transcription: _transcription),
+      home: StartScreen(ble: _ble),
     );
   }
 }

@@ -7,37 +7,45 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../services/app_log.dart';
 import '../services/esp_ble_service.dart';
-import '../services/transcription_service.dart';
+import '../sources/audio_source.dart';
+import '../sources/image_source.dart';
 import 'control_screen.dart';
 
 class ConnectScreen extends StatefulWidget {
-  const ConnectScreen({
-    super.key,
-    required this.ble,
-    required this.transcription,
-  });
+  const ConnectScreen({super.key, this.ble});
 
-  final EspBleService ble;
-  final TranscriptionService transcription;
+  final EspBleService? ble;
 
   @override
   State<ConnectScreen> createState() => _ConnectScreenState();
 }
 
 class _ConnectScreenState extends State<ConnectScreen> {
+  late final EspBleService _ble = widget.ble ?? EspBleService();
+
   String? _error;
   EspConnectionState _state = EspConnectionState.disconnected;
   List<String> _logLines = AppLog.instance.snapshot;
 
+  bool get _shouldDisposeBle => widget.ble == null;
+
   @override
   void initState() {
     super.initState();
-    widget.ble.connectionState.listen((s) {
+    _ble.connectionState.listen((s) {
       if (mounted) setState(() => _state = s);
     });
     AppLog.instance.lines.listen((lines) {
       if (mounted) setState(() => _logLines = lines);
     });
+  }
+
+  @override
+  void dispose() {
+    if (_shouldDisposeBle) {
+      _ble.dispose();
+    }
+    super.dispose();
   }
 
   Future<bool> _requestBlePermissions() async {
@@ -84,13 +92,15 @@ class _ConnectScreenState extends State<ConnectScreen> {
     if (!await _requestBlePermissions()) return;
 
     try {
-      await widget.ble.connect();
+      await _ble.connect();
       if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => ControlScreen(
-            ble: widget.ble,
-            transcription: widget.transcription,
+            title: EspBleService.espName,
+            ble: _ble,
+            audioSource: EspAudioSource(_ble),
+            imageSource: EspImageSource(_ble),
           ),
         ),
       );
@@ -156,6 +166,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
         _state == EspConnectionState.connecting;
 
     return Scaffold(
+      appBar: AppBar(title: const Text('Подключение ESP')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),

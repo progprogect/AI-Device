@@ -1,0 +1,35 @@
+{
+  "transcription": [
+    {
+      "id": "whisper_large_turbo",
+      "type": "whisper",
+      "displayName": "Whisper large-v3-turbo",
+      "enabled": true,
+      "config": { "model": "large-v3-turbo" }
+    },
+    {
+      "id": "apple_speech",
+      "type": "apple_speech",
+      "displayName": "Apple Speech (SpeechAnalyzer)",
+      "enabled": true,
+      "config": {}
+    }
+  ],
+  "chat": [
+    {
+      "id": "apple_foundation",
+      "type": "apple_foundation",
+      "displayName": "Apple Foundation Models",
+      "enabled": true,
+      "config": {}
+    },
+    {
+      "id": "openai_compatible",
+      "type": "openai_compatible",
+      "displayName": "OpenAI-compatible API",
+      "enabled": false,
+      "requiresApiKey": true,
+      "config": { "baseUrl": "https://api.openai.com/v1", "model": "gpt-4o-mini" }
+    }
+  ]
+}

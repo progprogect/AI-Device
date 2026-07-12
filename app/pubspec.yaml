@@ -40,6 +40,12 @@ dependencies:
   crypto: ^3.0.7
   http: ^1.6.0
   whisper_ggml_plus: ^1.5.2
+  flutter_foundation_models: ^0.3.0
+  liquid_speech: ^0.1.1
+  record: ^7.1.1
+  camera_macos: ^0.1.0
+  shared_preferences: ^2.5.5
+  image_picker: ^1.2.3
 
 dev_dependencies:
   flutter_test:
@@ -62,6 +68,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/models.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

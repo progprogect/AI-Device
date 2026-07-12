@@ -6,6 +6,12 @@
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Приложению нужен Bluetooth для подключения к устройству ESP-Sense и получения аудио и фото.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Микрофон нужен для записи голоса и распознавания речи.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Камера нужна для съёмки фото.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Распознавание речи для транскрипции голосовых сообщений.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Локальная сеть используется для приёма видео с устройства ESP-Sense по Wi-Fi.</string>
 	<key>CFBundleDevelopmentRegion</key>
