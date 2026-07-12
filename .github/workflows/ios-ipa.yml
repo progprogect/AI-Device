@@ -25,12 +25,16 @@ jobs:
         run: |
           if [ -d "/Applications/Xcode_26.app" ]; then
             sudo xcode-select -s /Applications/Xcode_26.app/Contents/Developer
+            # Xcode 26 may be present without the iOS platform bundle.
+            xcodebuild -downloadPlatform iOS || true
           elif [ -d "/Applications/Xcode_26.0.app" ]; then
             sudo xcode-select -s /Applications/Xcode_26.0.app/Contents/Developer
+            xcodebuild -downloadPlatform iOS || true
           else
             echo "Using default Xcode: $(xcode-select -p)"
           fi
           xcodebuild -version || true
+          xcodebuild -showsdks || true
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
