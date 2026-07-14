@@ -10,6 +10,10 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
+    let messenger = flutterViewController.engine.binaryMessenger
+    let foundationModelsHost = FoundationModelsHostApiImpl(binaryMessenger: messenger)
+    FoundationModelsHostApiSetup.setUp(binaryMessenger: messenger, api: foundationModelsHost)
+
     super.awakeFromNib()
   }
 }

@@ -1,6 +1,3 @@
-import 'dart:io' show Platform;
-
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_foundation_models/flutter_foundation_models.dart';
 
 import '../provider.dart';
@@ -18,13 +15,6 @@ class AppleFoundationProvider implements ChatProvider {
 
   @override
   Future<ProviderAvailability> checkAvailability() async {
-    if (!kIsWeb && !Platform.isIOS) {
-      return const ProviderAvailability(
-        available: false,
-        reason:
-            'Foundation Models на macOS: плагин пока только iOS. На Mac доступны Whisper и Apple Speech.',
-      );
-    }
     final avail = await SystemLanguageModel.availability;
     if (avail.isAvailable) return ProviderAvailability.ready;
     return ProviderAvailability(
