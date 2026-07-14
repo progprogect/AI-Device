@@ -13,6 +13,10 @@ import '../services/wav_writer.dart';
 /// Источник аудио: запись по кнопке → WAV-файл.
 abstract class AudioSource {
   String get label;
+
+  /// Последний успешно сохранённый WAV (после stopRecording).
+  String? get lastRecordedPath;
+
   Future<void> startRecording();
   Future<String?> stopRecording(); // путь к WAV или null
   void dispose();
@@ -24,7 +28,11 @@ class LocalAudioSource implements AudioSource {
 
   final AudioRecorder _recorder;
   String? _path;
+  String? _lastRecordedPath;
   final _log = AppLog.instance;
+
+  @override
+  String? get lastRecordedPath => _lastRecordedPath;
 
   @override
   String get label => 'Микрофон этого устройства';
@@ -50,8 +58,12 @@ class LocalAudioSource implements AudioSource {
   @override
   Future<String?> stopRecording() async {
     final path = await _recorder.stop();
-    _log.info('LocalAudio: stopped $path');
-    return path ?? _path;
+    final resolved = path ?? _path;
+    _log.info('LocalAudio: stopped $resolved');
+    if (resolved != null) {
+      _lastRecordedPath = resolved;
+    }
+    return resolved;
   }
 
   @override
@@ -67,7 +79,11 @@ class EspAudioSource implements AudioSource {
   final EspBleService ble;
   final List<int> _buffer = [];
   StreamSubscription<Int16List>? _sub;
+  String? _lastRecordedPath;
   final _log = AppLog.instance;
+
+  @override
+  String? get lastRecordedPath => _lastRecordedPath;
 
   @override
   String get label => 'ESP-Sense (Bluetooth)';
@@ -95,6 +111,7 @@ class EspAudioSource implements AudioSource {
     final wav = pcmToWav(Int16List.fromList(_buffer));
     await File(path).writeAsBytes(wav);
     _buffer.clear();
+    _lastRecordedPath = path;
     _log.info('EspAudio: saved $path (${wav.length} bytes)');
     return path;
   }

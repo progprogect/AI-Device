@@ -70,15 +70,7 @@ class _ControlScreenState extends State<ControlScreen> {
       chat[p.id] = await p.checkAvailability();
     }
     if (mounted) {
-      if (widget.audioSource is EspAudioSource &&
-          _registry.selectedTranscription.supportsLiveTranscription) {
-        for (final p in _registry.transcriptionProviders) {
-          if (p.supportsFileTranscription) {
-            await _registry.selectTranscription(p);
-            break;
-          }
-        }
-      }
+      await _ensureAvailableAsrSelected(asr);
       setState(() {
         _asrAvail = asr;
         _chatAvail = chat;
@@ -90,6 +82,32 @@ class _ControlScreenState extends State<ControlScreen> {
           );
         }
       });
+    }
+  }
+
+  Future<void> _ensureAvailableAsrSelected(
+    Map<String, ProviderAvailability> asr,
+  ) async {
+    if (widget.audioSource is EspAudioSource &&
+        _registry.selectedTranscription.supportsLiveTranscription) {
+      for (final p in _registry.transcriptionProviders) {
+        if (p.supportsFileTranscription) {
+          await _registry.selectTranscription(p);
+          break;
+        }
+      }
+      return;
+    }
+
+    final sel = _registry.selectedTranscription;
+    final selAvail = asr[sel.id];
+    if (selAvail?.available == true) return;
+
+    for (final p in _registry.transcriptionProviders) {
+      if (asr[p.id]?.available == true) {
+        await _registry.selectTranscription(p);
+        break;
+      }
     }
   }
 
@@ -127,10 +145,15 @@ class _ControlScreenState extends State<ControlScreen> {
 
     if (!_recording) {
       final asr = _registry.selectedTranscription;
+      final avail = _asrAvail[asr.id] ?? await asr.checkAvailability();
+      if (!avail.available && asr.supportsLiveTranscription) {
+        await _ensureFileAsrSelected();
+      }
+      final activeAsr = _registry.selectedTranscription;
       var liveStarted = false;
       try {
-        if (asr.supportsLiveTranscription) {
-          await asr.startLiveTranscription();
+        if (activeAsr.supportsLiveTranscription) {
+          await activeAsr.startLiveTranscription();
           liveStarted = true;
         }
         await widget.audioSource.startRecording();
@@ -139,9 +162,9 @@ class _ControlScreenState extends State<ControlScreen> {
           _status = 'Запись…';
         });
       } catch (e) {
-        if (liveStarted && asr.supportsLiveTranscription) {
+        if (liveStarted && activeAsr.supportsLiveTranscription) {
           try {
-            await asr.stopLiveTranscription();
+            await activeAsr.stopLiveTranscription();
           } catch (_) {}
         }
         _log.error('Start record: $e');
@@ -173,6 +196,51 @@ class _ControlScreenState extends State<ControlScreen> {
 
   String? _pendingWavPath;
 
+  Future<void> _ensureFileAsrSelected() async {
+    final sel = _registry.selectedTranscription;
+    final avail = _asrAvail[sel.id] ?? await sel.checkAvailability();
+    if (avail.available || !sel.supportsLiveTranscription) return;
+
+    for (final p in _registry.transcriptionProviders) {
+      if (!p.supportsFileTranscription) continue;
+      final pAvail = _asrAvail[p.id] ?? await p.checkAvailability();
+      if (pAvail.available) {
+        await _registry.selectTranscription(p);
+        if (mounted) {
+          setState(() => _status = 'ASR переключён на ${p.displayName}');
+        }
+        return;
+      }
+    }
+  }
+
+  Future<String> _resolveWavPath() async {
+    if (_recording) {
+      _pendingWavPath = await widget.audioSource.stopRecording();
+      if (mounted) setState(() => _recording = false);
+    }
+
+    var path = _pendingWavPath ?? widget.audioSource.lastRecordedPath;
+    _log.info('Resolve WAV: pending=$_pendingWavPath last=${widget.audioSource.lastRecordedPath}');
+
+    for (var attempt = 0; attempt < 10; attempt++) {
+      if (path != null) {
+        final file = File(path);
+        if (await file.exists()) {
+          final size = await file.length();
+          if (size > 44) return path;
+          _log.warn('WAV слишком мал ($size байт), попытка ${attempt + 1}');
+        } else {
+          _log.warn('WAV не найден: $path, попытка ${attempt + 1}');
+        }
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      path ??= widget.audioSource.lastRecordedPath;
+    }
+
+    throw Exception('Нет записанного аудио');
+  }
+
   Future<void> _onDone() async {
     if (_processing) return;
 
@@ -188,21 +256,14 @@ class _ControlScreenState extends State<ControlScreen> {
       if (asr.supportsLiveTranscription) {
         if (_recording) {
           await widget.audioSource.stopRecording();
-          setState(() => _recording = false);
+          if (mounted) setState(() => _recording = false);
         }
         transcript = await asr.stopLiveTranscription();
       } else {
-        // Если запись ещё идёт — остановить и получить файл
-        if (_recording) {
-          _pendingWavPath = await widget.audioSource.stopRecording();
-          setState(() => _recording = false);
-        }
-        final path = _pendingWavPath;
-        _pendingWavPath = null;
-        if (path == null || !File(path).existsSync()) {
-          throw Exception('Нет записанного аудио');
-        }
+        final path = await _resolveWavPath();
+        _log.info('Transcribe file: $path');
         transcript = await asr.transcribeFile(path, lang: 'auto');
+        _pendingWavPath = null;
       }
 
       transcript = transcript.trim();
@@ -237,7 +298,12 @@ class _ControlScreenState extends State<ControlScreen> {
     final chatProvider = _registry.selectedChat;
     final avail = await chatProvider.checkAvailability();
     if (!avail.available) {
-      setState(() => _status = avail.reason ?? 'LLM недоступен');
+      final reason = avail.reason ?? 'LLM недоступен';
+      setState(() {
+        _chat.add(ChatMessage(role: ChatRole.assistant, content: reason));
+        _status = 'Транскрипт готов (LLM недоступен на этом устройстве)';
+      });
+      _scrollChatToEnd();
       return;
     }
 
@@ -379,6 +445,11 @@ class _ControlScreenState extends State<ControlScreen> {
     final asrList = _registry.transcriptionProviders;
     final chatList = _registry.chatProviders;
 
+    String? selectedId(String? id, List<dynamic> list) {
+      if (id != null && list.any((p) => p.id == id)) return id;
+      return list.isNotEmpty ? list.first.id as String : null;
+    }
+
     return Material(
       elevation: 1,
       child: Padding(
@@ -386,25 +457,24 @@ class _ControlScreenState extends State<ControlScreen> {
         child: Row(
           children: [
             Expanded(
-              child: DropdownButtonFormField<TranscriptionProvider>(
+              child: DropdownButtonFormField<String>(
                 decoration: const InputDecoration(
                   labelText: 'ASR',
                   isDense: true,
                   border: OutlineInputBorder(),
                 ),
-                value: asrList.contains(_registry.selectedTranscription)
-                    ? _registry.selectedTranscription
-                    : (asrList.isNotEmpty ? asrList.first : null),
+                value: selectedId(_registry.selectedTranscription.id, asrList),
                 items: asrList.map((p) {
                   final avail = _asrAvail[p.id];
                   final suffix = avail?.available == true ? '' : ' ⚠';
                   return DropdownMenuItem(
-                    value: p,
+                    value: p.id,
                     child: Text('${p.displayName}$suffix'),
                   );
                 }).toList(),
-                onChanged: (p) async {
-                  if (p == null) return;
+                onChanged: (id) async {
+                  if (id == null) return;
+                  final p = asrList.firstWhere((e) => e.id == id);
                   await _registry.selectTranscription(p);
                   setState(() {});
                 },
@@ -412,25 +482,24 @@ class _ControlScreenState extends State<ControlScreen> {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: DropdownButtonFormField<ChatProvider>(
+              child: DropdownButtonFormField<String>(
                 decoration: const InputDecoration(
                   labelText: 'Chat LLM',
                   isDense: true,
                   border: OutlineInputBorder(),
                 ),
-                value: chatList.contains(_registry.selectedChat)
-                    ? _registry.selectedChat
-                    : (chatList.isNotEmpty ? chatList.first : null),
+                value: selectedId(_registry.selectedChat.id, chatList),
                 items: chatList.map((p) {
                   final avail = _chatAvail[p.id];
                   final suffix = avail?.available == true ? '' : ' ⚠';
                   return DropdownMenuItem(
-                    value: p,
+                    value: p.id,
                     child: Text('${p.displayName}$suffix'),
                   );
                 }).toList(),
-                onChanged: (p) async {
-                  if (p == null) return;
+                onChanged: (id) async {
+                  if (id == null) return;
+                  final p = chatList.firstWhere((e) => e.id == id);
                   await _registry.selectChat(p);
                   setState(() {});
                 },
@@ -550,7 +619,7 @@ class _ControlScreenState extends State<ControlScreen> {
             label: Text(_recording ? 'Стоп' : 'Запись'),
           ),
           FilledButton.icon(
-            onPressed: (_processing || _recording) ? null : _onDone,
+            onPressed: _processing ? null : _onDone,
             icon: const Icon(Icons.check),
             label: const Text('Готово'),
           ),
